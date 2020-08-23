@@ -15,29 +15,29 @@ func (tree *Tree) AddLeaf(index []byte, data []byte) {
 	node := NewLeafNode(index)
 
 	nodeValue := crypto.GenerateHash(data)
-	ancestorNode := node.getAncestor()
+	parentNode := node.getParent()
 
 	tree.store.ExecTx(func(tx Transaction) {
 		tx.SetValue(node.key(), nodeValue)
-		for ancestorNode != nil {
+		for parentNode != nil {
 			siblingNode := node.getSibling()
 			siblingValue := tx.GetValue(siblingNode.key(), tx.CurrentEpoch())
 			if siblingValue == nil {
 				siblingValue = tree.levelDefaults[siblingNode.level]
 			}
 
-			var ancestorValue crypto.Hash
+			var parentValue crypto.Hash
 			if node.isLeft() {
-				ancestorValue = crypto.GenerateHash(nodeValue.Merge(siblingValue))
+				parentValue = crypto.GenerateHash(nodeValue.Merge(siblingValue))
 			} else {
-				ancestorValue = crypto.GenerateHash(siblingValue.Merge(nodeValue))
+				parentValue = crypto.GenerateHash(siblingValue.Merge(nodeValue))
 			}
 
-			tx.SetValue(ancestorNode.key(), ancestorValue)
+			tx.SetValue(parentNode.key(), parentValue)
 
-			node = ancestorNode
-			nodeValue = ancestorValue
-			ancestorNode = node.getAncestor()
+			node = parentNode
+			nodeValue = parentValue
+			parentNode = node.getParent()
 		}
 	})
 }
@@ -100,9 +100,9 @@ func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) []*ProofStep {
 			Value: leafSiblingValue,
 		}
 
-		// get all ancestor siblings
-		for proofIndex, ancestor := 1, node.getAncestor(); ancestor != nil; proofIndex, ancestor = proofIndex+1, ancestor.getAncestor() {
-			sibling := ancestor.getSibling()
+		// get all parent siblings
+		for proofIndex, parent := 1, node.getParent(); parent != nil; proofIndex, parent = proofIndex+1, parent.getParent() {
+			sibling := parent.getSibling()
 			siblingValue := tx.GetValue(sibling.key(), epoch)
 
 			if siblingValue == nil {

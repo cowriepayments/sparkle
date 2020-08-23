@@ -31,7 +31,7 @@ func (node *Node) getSibling() *Node {
 	return siblingNode
 }
 
-func (node *Node) getAncestor() *Node {
+func (node *Node) getParent() *Node {
 	if node.level == 255 {
 		return nil
 	}
