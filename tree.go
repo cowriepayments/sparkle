@@ -1,8 +1,6 @@
 package sparkle
 
 import (
-	"math/big"
-
 	"github.com/umran/crypto"
 )
 
@@ -14,10 +12,8 @@ type Tree struct {
 
 // AddLeaf ...
 func (tree *Tree) AddLeaf(index []byte, data []byte) {
-	node := &Node{
-		level:  0,
-		prefix: big.NewInt(0).SetBytes(index),
-	}
+	node := NewLeafNode(index)
+
 	nodeValue := crypto.GenerateHash(data)
 	ancestorNode := node.getAncestor()
 
@@ -49,6 +45,7 @@ func (tree *Tree) AddLeaf(index []byte, data []byte) {
 // PublishRoot ...
 func (tree *Tree) PublishRoot() crypto.Hash {
 	var root crypto.Hash
+
 	tree.store.ExecTx(func(tx Transaction) {
 		left := tx.GetValue("ff", tx.CurrentEpoch())
 		right := tx.GetValue("ff01", tx.CurrentEpoch())
@@ -62,7 +59,6 @@ func (tree *Tree) PublishRoot() crypto.Hash {
 		}
 
 		root = crypto.GenerateHash(left.Merge(right))
-
 		tx.CommitRoot(root)
 	})
 
@@ -72,6 +68,7 @@ func (tree *Tree) PublishRoot() crypto.Hash {
 // GetRoot returns the most recently published root
 func (tree *Tree) GetRoot() crypto.Hash {
 	var root crypto.Hash
+
 	tree.store.ExecTx(func(tx Transaction) {
 		root = tx.GetRootByEpoch(tx.CurrentEpoch() - 1)
 	})
@@ -90,17 +87,14 @@ func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) []*ProofStep {
 		// be generated in such a case
 		epoch := tx.GetEpochByRoot(root)
 
-		node := &Node{
-			level:  0,
-			prefix: big.NewInt(0).SetBytes(index),
-		}
-
-		// get the sibling value of the leaf node
+		node := NewLeafNode(index)
 		leafSibling := node.getSibling()
 		leafSiblingValue := tx.GetValue(leafSibling.key(), epoch)
+
 		if leafSiblingValue == nil {
 			leafSiblingValue = tree.levelDefaults[leafSibling.level]
 		}
+
 		proof[0] = &ProofStep{
 			Left:  leafSibling.isLeft(),
 			Value: leafSiblingValue,
@@ -110,9 +104,11 @@ func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) []*ProofStep {
 		for proofIndex, ancestor := 1, node.getAncestor(); ancestor != nil; proofIndex, ancestor = proofIndex+1, ancestor.getAncestor() {
 			sibling := ancestor.getSibling()
 			siblingValue := tx.GetValue(sibling.key(), epoch)
+
 			if siblingValue == nil {
 				siblingValue = tree.levelDefaults[sibling.level]
 			}
+
 			proof[proofIndex] = &ProofStep{
 				Left:  sibling.isLeft(),
 				Value: siblingValue,
@@ -126,6 +122,7 @@ func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) []*ProofStep {
 // VerifyProof ...
 func VerifyProof(data []byte, steps []*ProofStep, root crypto.Hash) bool {
 	rootCandidate := crypto.GenerateHash(data)
+
 	for _, step := range steps {
 		if step.Left {
 			rootCandidate = crypto.GenerateHash(step.Value.Merge(rootCandidate))
@@ -151,6 +148,7 @@ func generateLevelDefaults() map[uint8]crypto.Hash {
 	for i := 0; i < 256; i++ {
 		if i == 0 {
 			defaults[uint8(i)] = crypto.GenerateHash(make([]byte, 0))
+			continue
 		}
 
 		defaults[uint8(i)] = crypto.GenerateHash(defaults[uint8(i)-1].Merge(defaults[uint8(i)-1]))

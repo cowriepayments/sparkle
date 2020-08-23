@@ -50,3 +50,11 @@ func (node *Node) key() string {
 
 	return hex.EncodeToString(levelByte) + hex.EncodeToString(prefixBytes)
 }
+
+// NewLeafNode ...
+func NewLeafNode(index []byte) *Node {
+	return &Node{
+		level:  0,
+		prefix: big.NewInt(0).SetBytes(index),
+	}
+}
