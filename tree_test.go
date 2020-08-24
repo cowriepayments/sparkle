@@ -13,9 +13,9 @@ func TestProof(t *testing.T) {
 	data, _ := crypto.GenerateNonce()
 
 	tree.AddLeaf(data, data)
-	root := tree.PublishRoot()
+	root, _ := tree.PublishRoot()
 
-	steps := tree.GenerateProof(data, root)
+	steps, _ := tree.GenerateProof(data, root)
 
 	if !VerifyProof(data, steps, root) {
 		t.Error("proof verification failed")
@@ -26,25 +26,29 @@ func TestProof(t *testing.T) {
 	tree.AddLeaf(data2, data2)
 
 	// publish new root
-	root2 := tree.PublishRoot()
+	root2, _ := tree.PublishRoot()
 
 	// test previous data against previously published root
-	if !VerifyProof(data, tree.GenerateProof(data, root), root) {
+	steps, _ = tree.GenerateProof(data, root)
+	if !VerifyProof(data, steps, root) {
 		t.Error("proof verification failed")
 	}
 
 	// test new data against previously published root
-	if VerifyProof(data2, tree.GenerateProof(data2, root), root) {
+	steps, _ = tree.GenerateProof(data2, root)
+	if VerifyProof(data2, steps, root) {
 		t.Error("expected proof verification to fail")
 	}
 
 	// test previous data against newly published root
-	if !VerifyProof(data, tree.GenerateProof(data, root2), root2) {
+	steps, _ = tree.GenerateProof(data, root2)
+	if !VerifyProof(data, steps, root2) {
 		t.Error("proof verification failed")
 	}
 
 	// test new data against newly published root
-	if !VerifyProof(data2, tree.GenerateProof(data2, root2), root2) {
+	steps, _ = tree.GenerateProof(data2, root2)
+	if !VerifyProof(data2, steps, root2) {
 		t.Error("proof verification failed")
 	}
 }

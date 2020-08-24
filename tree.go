@@ -11,17 +11,26 @@ type Tree struct {
 }
 
 // AddLeaf ...
-func (tree *Tree) AddLeaf(index []byte, data []byte) {
+func (tree *Tree) AddLeaf(index []byte, data []byte) error {
 	node := NewLeafNode(index)
 
 	nodeValue := crypto.GenerateHash(data)
 	parentNode := node.getParent()
 
-	tree.store.ExecTx(func(tx Transaction) {
+	return tree.store.ExecTx(func(tx Transaction) error {
+		currentEpoch, err := tx.CurrentEpoch()
+		if err != nil {
+			return err
+		}
+
 		tx.SetValue(node.key(), nodeValue)
 		for parentNode != nil {
 			siblingNode := node.getSibling()
-			siblingValue := tx.GetValue(siblingNode.key(), tx.CurrentEpoch())
+			siblingValue, err := tx.GetValue(siblingNode.key(), currentEpoch)
+			if err != nil {
+				return err
+			}
+
 			if siblingValue == nil {
 				siblingValue = tree.levelDefaults[siblingNode.level]
 			}
@@ -33,22 +42,38 @@ func (tree *Tree) AddLeaf(index []byte, data []byte) {
 				parentValue = crypto.GenerateHash(siblingValue.Merge(nodeValue))
 			}
 
-			tx.SetValue(parentNode.key(), parentValue)
+			if err := tx.SetValue(parentNode.key(), parentValue); err != nil {
+				return err
+			}
 
 			node = parentNode
 			nodeValue = parentValue
 			parentNode = node.getParent()
 		}
+
+		return nil
 	})
 }
 
 // PublishRoot ...
-func (tree *Tree) PublishRoot() crypto.Hash {
+func (tree *Tree) PublishRoot() (crypto.Hash, error) {
 	var root crypto.Hash
 
-	tree.store.ExecTx(func(tx Transaction) {
-		left := tx.GetValue("ff", tx.CurrentEpoch())
-		right := tx.GetValue("ff01", tx.CurrentEpoch())
+	err := tree.store.ExecTx(func(tx Transaction) error {
+		currentEpoch, err := tx.CurrentEpoch()
+		if err != nil {
+			return err
+		}
+
+		left, err := tx.GetValue("ff", currentEpoch)
+		if err != nil {
+			return err
+		}
+
+		right, err := tx.GetValue("ff01", currentEpoch)
+		if err != nil {
+			return err
+		}
 
 		if left == nil {
 			left = tree.levelDefaults[255]
@@ -59,37 +84,49 @@ func (tree *Tree) PublishRoot() crypto.Hash {
 		}
 
 		root = crypto.GenerateHash(left.Merge(right))
-		tx.CommitRoot(root)
+		return tx.CommitRoot(root)
 	})
 
-	return root
+	return root, err
 }
 
 // GetRoot returns the most recently published root
-func (tree *Tree) GetRoot() crypto.Hash {
+func (tree *Tree) GetRoot() (crypto.Hash, error) {
 	var root crypto.Hash
 
-	tree.store.ExecTx(func(tx Transaction) {
-		root = tx.GetRootByEpoch(tx.CurrentEpoch() - 1)
+	err := tree.store.ExecTx(func(tx Transaction) error {
+		currentEpoch, err := tx.CurrentEpoch()
+		if err != nil {
+			return err
+		}
+
+		root, err = tx.GetRootByEpoch(currentEpoch - 1)
+		return err
 	})
 
-	return root
+	return root, err
 }
 
 // GenerateProof ...
-func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) []*ProofStep {
+func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) ([]*ProofStep, error) {
 	proof := make([]*ProofStep, 256)
 
-	tree.store.ExecTx(func(tx Transaction) {
+	err := tree.store.ExecTx(func(tx Transaction) error {
 		// note that if the root doesn't really exist we will
 		// get back an epoch of 0, which will still be valid
 		// against the first root committed. a proof will still
 		// be generated in such a case
-		epoch := tx.GetEpochByRoot(root)
+		epoch, err := tx.GetEpochByRoot(root)
+		if err != nil {
+			return err
+		}
 
 		node := NewLeafNode(index)
 		leafSibling := node.getSibling()
-		leafSiblingValue := tx.GetValue(leafSibling.key(), epoch)
+		leafSiblingValue, err := tx.GetValue(leafSibling.key(), epoch)
+		if err != nil {
+			return err
+		}
 
 		if leafSiblingValue == nil {
 			leafSiblingValue = tree.levelDefaults[leafSibling.level]
@@ -103,7 +140,10 @@ func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) []*ProofStep {
 		// get all parent siblings
 		for proofIndex, parent := 1, node.getParent(); parent != nil; proofIndex, parent = proofIndex+1, parent.getParent() {
 			sibling := parent.getSibling()
-			siblingValue := tx.GetValue(sibling.key(), epoch)
+			siblingValue, err := tx.GetValue(sibling.key(), epoch)
+			if err != nil {
+				return err
+			}
 
 			if siblingValue == nil {
 				siblingValue = tree.levelDefaults[sibling.level]
@@ -114,9 +154,11 @@ func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) []*ProofStep {
 				Value: siblingValue,
 			}
 		}
+
+		return nil
 	})
 
-	return proof
+	return proof, err
 }
 
 // VerifyProof ...

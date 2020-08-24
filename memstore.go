@@ -16,11 +16,11 @@ type MemStore struct {
 }
 
 // ExecTx ...
-func (ms *MemStore) ExecTx(task func(Transaction)) {
+func (ms *MemStore) ExecTx(handler func(Transaction) error) error {
 	ms.mux.Lock()
 	defer ms.mux.Unlock()
 
-	task(&MemStoreTransaction{
+	return handler(&MemStoreTransaction{
 		store: ms,
 	})
 }
@@ -31,10 +31,10 @@ type MemStoreTransaction struct {
 }
 
 // GetValue ...
-func (tx *MemStoreTransaction) GetValue(key string, maxEpoch uint64) crypto.Hash {
+func (tx *MemStoreTransaction) GetValue(key string, maxEpoch uint64) (crypto.Hash, error) {
 	versions := tx.store.values[key]
 	if versions == nil {
-		return nil
+		return nil, nil
 	}
 
 	var (
@@ -49,39 +49,42 @@ func (tx *MemStoreTransaction) GetValue(key string, maxEpoch uint64) crypto.Hash
 		}
 	}
 
-	return latestVersion
+	return latestVersion, nil
 }
 
 // SetValue ...
-func (tx *MemStoreTransaction) SetValue(key string, value crypto.Hash) {
+func (tx *MemStoreTransaction) SetValue(key string, value crypto.Hash) error {
 	_, ok := tx.store.values[key]
 	if !ok {
 		tx.store.values[key] = make(map[uint64]crypto.Hash)
 	}
 
 	tx.store.values[key][tx.store.currentEpoch] = value
+	return nil
 }
 
 // CurrentEpoch ...
-func (tx *MemStoreTransaction) CurrentEpoch() uint64 {
-	return tx.store.currentEpoch
+func (tx *MemStoreTransaction) CurrentEpoch() (uint64, error) {
+	return tx.store.currentEpoch, nil
 }
 
 // CommitRoot ...
-func (tx *MemStoreTransaction) CommitRoot(root crypto.Hash) {
+func (tx *MemStoreTransaction) CommitRoot(root crypto.Hash) error {
 	tx.store.rootsByEpoch[tx.store.currentEpoch] = root
 	tx.store.epochsByRoot[root.HexString()] = tx.store.currentEpoch
 	tx.store.currentEpoch++
+
+	return nil
 }
 
 // GetEpochByRoot ...
-func (tx *MemStoreTransaction) GetEpochByRoot(root crypto.Hash) uint64 {
-	return tx.store.epochsByRoot[root.HexString()]
+func (tx *MemStoreTransaction) GetEpochByRoot(root crypto.Hash) (uint64, error) {
+	return tx.store.epochsByRoot[root.HexString()], nil
 }
 
 // GetRootByEpoch ...
-func (tx *MemStoreTransaction) GetRootByEpoch(epoch uint64) crypto.Hash {
-	return tx.store.rootsByEpoch[epoch]
+func (tx *MemStoreTransaction) GetRootByEpoch(epoch uint64) (crypto.Hash, error) {
+	return tx.store.rootsByEpoch[epoch], nil
 }
 
 // NewMemStore ...
