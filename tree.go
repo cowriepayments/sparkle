@@ -23,7 +23,10 @@ func (tree *Tree) AddLeaf(index []byte, data []byte) error {
 			return err
 		}
 
-		tx.SetValue(node.key(), nodeValue)
+		if err := tx.SetValue(node.key(), nodeValue); err != nil {
+			return err
+		}
+
 		for parentNode != nil {
 			siblingNode := node.getSibling()
 			siblingValue, err := tx.GetValue(siblingNode.key(), currentEpoch)
