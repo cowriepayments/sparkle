@@ -4,7 +4,7 @@ import (
 	"database/sql"
 
 	"github.com/umran/crypto"
-	"github.com/umran/teahupoo/db"
+	"github.com/umran/db"
 )
 
 // SQLStore ...
