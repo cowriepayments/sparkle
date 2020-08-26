@@ -115,10 +115,6 @@ func (tree *Tree) GenerateProof(index []byte, root crypto.Hash) ([]*ProofStep, e
 	proof := make([]*ProofStep, 256)
 
 	err := tree.store.ExecTx(func(tx Transaction) error {
-		// note that if the root doesn't really exist we will
-		// get back an epoch of 0, which will still be valid
-		// against the first root committed. a proof will still
-		// be generated in such a case
 		epoch, err := tx.GetEpochByRoot(root)
 		if err != nil {
 			return err
