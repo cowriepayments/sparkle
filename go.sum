@@ -4,5 +4,5 @@ github.com/lib/pq v1.8.0 h1:9xohqzkUwzR4Ga4ivdTcawVS89YSDVxXMa3xJX3cGzg=
 github.com/lib/pq v1.8.0/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
 github.com/umran/crypto v1.1.0 h1:mO9/qAY5O0nuPFn+wiCj2I03ZxMkKYh3Pz5GxocP6kk=
 github.com/umran/crypto v1.1.0/go.mod h1:vuLYbC+o2mEhH9PBO5sT2dV8aqIlDhYPoTYZkaM5fDA=
-github.com/umran/db v0.1.0 h1:25YCIh/oar7xvJTsRx3+1c6aziOtSoEKuOfFRLGgce8=
-github.com/umran/db v0.1.0/go.mod h1:tiWiQ4pe2l1+VcmFvOC6sG/4ISB39sSf5xfbCHwrQnc=
+github.com/umran/db v0.1.1 h1:bGgPaIMa1/2SoSqPRq0sagzgAWw11nBB2h/2LNrzM84=
+github.com/umran/db v0.1.1/go.mod h1:tiWiQ4pe2l1+VcmFvOC6sG/4ISB39sSf5xfbCHwrQnc=
